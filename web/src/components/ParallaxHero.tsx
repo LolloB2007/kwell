@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
@@ -172,11 +173,11 @@ export function ParallaxHero({ imageUrl }: Props) {
         <p className="hero-sub mt-7 max-w-xl text-smoke-mid leading-relaxed">{t("hero.sub")}</p>
 
         <div className="hero-ctas mt-10 flex flex-wrap gap-4">
-          <a href="/categories" className="kwell-btn-primary group">
+          <Link href="/categories" className="kwell-btn-primary group">
             {t("hero.ctaShop")}
             <span className="transition-transform duration-500 group-hover:translate-x-1">→</span>
-          </a>
-          <a href="/b2b" className="kwell-btn-ghost">{t("hero.ctaB2B")}</a>
+          </Link>
+          <Link href="/b2b" className="kwell-btn-ghost">{t("hero.ctaB2B")}</Link>
         </div>
       </div>
 

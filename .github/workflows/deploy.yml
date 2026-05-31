@@ -51,8 +51,12 @@ jobs:
         run: npm ci
 
       - name: Build (static export)
-        # basePath/assetPrefix are derived from GITHUB_ACTIONS inside
-        # next.config.ts — no extra env needed here.
+        # next.config.ts derives basePath from GITHUB_ACTIONS, but
+        # NEXT_PUBLIC_BASE_PATH is what asset.ts uses to prefix /brand
+        # paths (next/image with `unoptimized` does NOT apply basePath
+        # to <img src> automatically). Keep both in sync.
+        env:
+          NEXT_PUBLIC_BASE_PATH: /kwell
         run: npm run build
 
       - name: Upload artifact

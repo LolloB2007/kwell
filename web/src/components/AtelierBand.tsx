@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Reveal } from "./Reveal";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
@@ -72,13 +73,13 @@ export function AtelierBand() {
         </div>
 
         <Reveal delay={200} className="mt-14">
-          <a
+          <Link
             href="/about"
             className="group inline-flex items-center gap-3 border-b border-[#1A191D]/30 pb-1 font-display text-xs uppercase tracking-[0.25em] text-[#1A191D] transition-colors hover:border-accent hover:text-accent"
           >
             {t("atelier.ctaLabel")}
             <span className="transition-transform duration-500 group-hover:translate-x-1">→</span>
-          </a>
+          </Link>
         </Reveal>
       </div>
     </section>

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "./ProductCard";
 import { Reveal } from "./Reveal";
@@ -18,9 +19,9 @@ export function FeaturedProducts({ products }: { products: Product[] }) {
               </div>
               <h2 className="kwell-h2 mt-4">{t("featured.title")}</h2>
             </div>
-            <a href="/categories" className="kwell-btn-ghost group">
+            <Link href="/categories" className="kwell-btn-ghost group">
               {t("common.viewAll")} <span className="transition-transform duration-500 group-hover:translate-x-1">→</span>
-            </a>
+            </Link>
           </div>
         </Reveal>
         <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

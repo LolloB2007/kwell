@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { Reveal } from "./Reveal";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
@@ -31,10 +32,10 @@ export function B2BSection({ imageUrl }: { imageUrl: string | null }) {
           </h2>
           <p className="mt-6 max-w-md text-smoke-mid leading-relaxed">{t("b2b.sub")}</p>
           <div className="mt-10 flex flex-wrap gap-4">
-            <a href="/b2b" className="kwell-btn-primary group">
+            <Link href="/b2b" className="kwell-btn-primary group">
               {t("b2b.ctaQuote")} <span className="transition-transform duration-500 group-hover:translate-x-1">→</span>
-            </a>
-            <a href="/about" className="kwell-btn-ghost">{t("b2b.ctaHow")}</a>
+            </Link>
+            <Link href="/about" className="kwell-btn-ghost">{t("b2b.ctaHow")}</Link>
           </div>
         </Reveal>
         <Reveal delay={120} className="md:pt-16">
