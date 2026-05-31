@@ -38,9 +38,12 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Setup Pages
+        # NOTE: do NOT pass `static_site_generator: next` — that helper
+        # writes its own next.config.js into the project root, which
+        # then overrides our next.config.ts (Next prefers .js). We own
+        # basePath/assetPrefix in next.config.ts and don't need the
+        # injection.
         uses: actions/configure-pages@v5
-        with:
-          static_site_generator: next
 
       - name: Install dependencies
         # Install at the workspace root so npm resolves the `web` workspace.
@@ -48,9 +51,8 @@ jobs:
         run: npm ci
 
       - name: Build (static export)
-        env:
-          # basePath/assetPrefix for project Pages at lollob2007.github.io/kwell/
-          NEXT_PUBLIC_BASE_PATH: /kwell
+        # basePath/assetPrefix are derived from GITHUB_ACTIONS inside
+        # next.config.ts — no extra env needed here.
         run: npm run build
 
       - name: Upload artifact

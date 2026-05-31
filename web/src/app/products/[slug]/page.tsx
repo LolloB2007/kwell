@@ -1,18 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProduct, getCategories, getRelatedProducts } from "@/lib/api";
+import { MOCK_PRODUCTS } from "@/lib/mock-catalogue";
 import { ProductDetailView } from "@/components/ProductDetailView";
 
 export const revalidate = 300;
 
-// Static export: the product API isn't reachable from the GitHub Actions
-// build, so we can't enumerate real slugs. Next requires at least one
-// entry, so we emit a single placeholder route — the page itself will
-// call notFound() at build time (since the fetch fails) and Next will
-// emit a 404 for that path. Replace with a real fetch once a public API
-// exists.
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  return [{ slug: "placeholder" }];
+  return MOCK_PRODUCTS.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

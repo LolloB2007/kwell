@@ -1,16 +1,16 @@
 import type { NextConfig } from "next";
 
-// The site ships as a fully static export so it can be served from
-// GitHub Pages. Pages project-sites live at `<user>.github.io/<repo>/`,
-// so basePath/assetPrefix prefix every internal URL with `/kwell`.
-// GitHub Actions builds with NEXT_PUBLIC_BASE_PATH set; locally we
-// default to no prefix so `npm run dev` keeps working at `/`.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+// Static export for GitHub Pages. The site lives at
+// lollob2007.github.io/kwell/, so every internal URL needs the
+// `/kwell` prefix. We hardcode the prefix on CI (GITHUB_ACTIONS=true)
+// so `npm run dev` keeps working at `/` locally.
+const onPages = process.env.GITHUB_ACTIONS === "true";
+const basePath = onPages ? "/kwell" : "";
 
 const config: NextConfig = {
   output: "export",
-  // Tells Next to emit `out/foo/index.html` instead of `out/foo.html`,
-  // which is what Pages expects for clean URLs.
+  // Emits `out/foo/index.html` instead of `out/foo.html` — what Pages
+  // expects for clean URLs.
   trailingSlash: true,
   basePath: basePath || undefined,
   assetPrefix: basePath ? `${basePath}/` : undefined,
