@@ -3,7 +3,10 @@ import { getCategories, getFeaturedProducts } from "@/lib/api";
 
 const BASE = "https://kwell.it";
 
-export const revalidate = 3600;
+// Static export needs an explicit static directive; `revalidate` alone
+// isn't enough for Next to emit `sitemap.xml` at build time.
+export const dynamic = "force-static";
+export const revalidate = false;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
