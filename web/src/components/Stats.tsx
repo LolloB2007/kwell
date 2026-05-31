@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useT } from "@/lib/i18n/LanguageProvider";
@@ -13,20 +13,21 @@ const NF = new Intl.NumberFormat("it-IT");
 type Stat = { target: number; suffix: string; label: string };
 
 /**
- * Desktop: cinematic, scroll-pinned reveal. The outer section is taller
- * than the viewport so a sticky inner stays in view while a scrubbed
- * GSAP timeline draws each stat in sequence (divider down, index in,
- * number counts up, caption in, final accent sweep at the bottom).
+ * Stats row with a desktop-only cinematic reveal.
  *
- * Mobile (< md): static grid with a simple intersection-triggered
- * count-up — no pinned sticky, no 260svh outer. The pinned reveal
- * fights with native iOS scrolling and turns a small section into a
- * giant dead-scroll area; the static grid keeps the same information
- * legible without breaking the page on phones.
+ * Layout is identical on SSR, mobile, and desktop hydration — only the
+ * GSAP behavior is gated. That matters: the previous version rendered
+ * a short layout on SSR and grew to 260svh after hydration, which
+ * pushed every downstream section's ScrollTrigger out of sync (the
+ * Manifesto's scrub played through before the user reached it).
  *
- * Uses CSS `position: sticky` (not GSAP `pin`) for the same reason as
- * the Manifesto: GSAP's pin-spacer breaks React reconciliation on
- * route changes.
+ * On md+: outer is 260svh, inner sticks while a scrubbed timeline
+ * draws each stat in sequence. On mobile: outer is auto, no sticky,
+ * numbers render at their final values (no count-up — keeps the
+ * mobile view a simple readable grid).
+ *
+ * Uses CSS `position: sticky` (not GSAP `pin`) because pin-spacer
+ * breaks React reconciliation on route changes.
  */
 export function Stats() {
   const { t } = useT();
@@ -39,12 +40,6 @@ export function Stats() {
     { target: 100, suffix: "%", label: t("stats.italian") },
   ];
 
-  // Cinematic version only mounts on desktop with motion enabled.
-  if (desktop && !reduced) return <StatsCinematic stats={STATS} />;
-  return <StatsStatic stats={STATS} animate={!reduced} />;
-}
-
-function StatsCinematic({ stats }: { stats: Stat[] }) {
   const root = useRef<HTMLElement | null>(null);
   const topTick = useRef<HTMLDivElement | null>(null);
   const bottomSweep = useRef<HTMLDivElement | null>(null);
@@ -55,7 +50,7 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    if (!root.current) return;
+    if (!desktop || reduced || !root.current) return;
 
     const ctx = gsap.context(() => {
       gsap.set(topTick.current, { scaleX: 0, transformOrigin: "center top" });
@@ -69,7 +64,7 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
         if (node) node.textContent = "0";
       });
 
-      const counts = stats.map(() => ({ n: 0 }));
+      const counts = STATS.map(() => ({ n: 0 }));
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -82,7 +77,7 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
 
       tl.to(topTick.current, { scaleX: 1, ease: "power2.out", duration: 0.4 }, 0);
 
-      stats.forEach((s, i) => {
+      STATS.forEach((s, i) => {
         const base = 0.15 + i * 0.55;
         tl.to(dividerRefs.current[i], { scaleY: 1, ease: "power3.inOut", duration: 0.45 }, base);
         tl.to(indexRefs.current[i], { opacity: 1, y: 0, ease: "power2.out", duration: 0.3 }, base + 0.05);
@@ -104,29 +99,33 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
       });
 
       tl.to(bottomSweep.current, { scaleX: 1, ease: "power3.inOut", duration: 0.6 }, "+=0.1");
+
+      // Page-internal layouts (images loading, fonts swapping, sibling
+      // hydration) can shift the trigger position after we register.
+      // A single refresh after mount keeps the scrub aligned.
+      ScrollTrigger.refresh();
     }, root);
 
     return () => ctx.revert();
-  }, [stats]);
+  }, [desktop, reduced]);
 
   return (
     <section
       ref={root}
-      className="relative bg-ink-900/60"
-      style={{ minHeight: "260svh" }}
+      className="relative bg-ink-900/60 md:min-h-[260svh]"
     >
-      <div className="sticky top-0 flex h-[100svh] w-full items-center border-y border-fg/15">
+      <div className="flex w-full items-center border-y border-fg/15 md:sticky md:top-0 md:h-[100svh]">
         <div
           ref={topTick}
           className="pointer-events-none absolute left-1/2 top-0 hidden h-4 w-[2px] -translate-x-1/2 bg-accent md:block"
         />
 
         <div className="mx-auto grid w-full max-w-7xl grid-cols-2 md:grid-cols-4">
-          {stats.map((s, i) => (
+          {STATS.map((s, i) => (
             <div
               key={s.label}
               className={
-                "group relative px-6 py-12 md:px-10 md:py-16 " +
+                "group relative px-6 py-10 md:px-10 md:py-16 " +
                 "after:pointer-events-none after:absolute after:bottom-0 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 " +
                 "after:bg-accent after:transition-[width] after:duration-500 after:ease-kwell hover:after:w-12"
               }
@@ -166,7 +165,7 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
                     digitRefs.current[i] = el;
                   }}
                 >
-                  0
+                  {NF.format(s.target)}
                 </span>
                 <span className="text-accent">{s.suffix}</span>
               </div>
@@ -191,71 +190,4 @@ function StatsCinematic({ stats }: { stats: Stat[] }) {
       </div>
     </section>
   );
-}
-
-function StatsStatic({ stats, animate }: { stats: Stat[]; animate: boolean }) {
-  return (
-    <section className="relative border-y border-fg/15 bg-ink-900/60">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-2">
-        {stats.map((s, i) => (
-          <div
-            key={s.label}
-            className="relative px-6 py-10"
-          >
-            {i > 0 && i % 2 === 1 && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-y-6 left-0 w-px bg-gradient-to-b from-transparent via-fg/25 to-transparent"
-              />
-            )}
-            <span className="absolute left-6 top-4 flex items-center gap-2 font-display text-[10px] tracking-[0.3em] text-fg/45">
-              <span className="h-px w-3 bg-fg/30" />
-              N°{String(i + 1).padStart(2, "0")}
-            </span>
-            <div className="font-display text-5xl uppercase leading-none tracking-display-tight text-fg tabular-nums">
-              <CountUp target={s.target} animate={animate} />
-              <span className="text-accent">{s.suffix}</span>
-            </div>
-            <div className="mt-3 text-[11px] uppercase tracking-[0.25em] text-fg/60">{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function CountUp({ target, animate }: { target: number; animate: boolean }) {
-  const [n, setN] = useState<number>(animate ? 0 : target);
-  const ref = useRef<HTMLSpanElement | null>(null);
-
-  useEffect(() => {
-    if (!animate || !ref.current) {
-      setN(target);
-      return;
-    }
-    const node = ref.current;
-    let started = false;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting && !started) {
-            started = true;
-            const tween = { n: 0 };
-            gsap.to(tween, {
-              n: target,
-              duration: 1.6,
-              ease: "power3.out",
-              onUpdate: () => setN(Math.round(tween.n)),
-            });
-            obs.disconnect();
-          }
-        }
-      },
-      { threshold: 0.4, rootMargin: "0px 0px -40px 0px" },
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [animate, target]);
-
-  return <span ref={ref}>{NF.format(n)}</span>;
 }
