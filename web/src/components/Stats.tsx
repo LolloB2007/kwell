@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useReducedMotion } from "@/lib/useReducedMotion";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
 
@@ -12,17 +13,25 @@ const NF = new Intl.NumberFormat("it-IT");
 type Stat = { target: number; suffix: string; label: string };
 
 /**
- * Cinematic, scroll-pinned reveal. The outer section is taller than the
- * viewport so a sticky inner stays in view while a scrubbed GSAP timeline
- * draws each stat in sequence: divider down, index in, number counts up,
- * caption in, then a red accent sweep across the bottom as the final beat.
+ * Desktop: cinematic, scroll-pinned reveal. The outer section is taller
+ * than the viewport so a sticky inner stays in view while a scrubbed
+ * GSAP timeline draws each stat in sequence (divider down, index in,
+ * number counts up, caption in, final accent sweep at the bottom).
  *
- * Uses CSS `position: sticky` (not GSAP `pin`) for the same reason as the
- * Manifesto: GSAP's pin-spacer breaks React reconciliation on route changes.
+ * Mobile (< md): static grid with a simple intersection-triggered
+ * count-up — no pinned sticky, no 260svh outer. The pinned reveal
+ * fights with native iOS scrolling and turns a small section into a
+ * giant dead-scroll area; the static grid keeps the same information
+ * legible without breaking the page on phones.
+ *
+ * Uses CSS `position: sticky` (not GSAP `pin`) for the same reason as
+ * the Manifesto: GSAP's pin-spacer breaks React reconciliation on
+ * route changes.
  */
 export function Stats() {
   const { t } = useT();
   const reduced = useReducedMotion();
+  const desktop = useMediaQuery();
   const STATS: Stat[] = [
     { target: 21, suffix: "+", label: t("stats.years") },
     { target: 412, suffix: "", label: t("stats.skus") },
@@ -30,6 +39,12 @@ export function Stats() {
     { target: 100, suffix: "%", label: t("stats.italian") },
   ];
 
+  // Cinematic version only mounts on desktop with motion enabled.
+  if (desktop && !reduced) return <StatsCinematic stats={STATS} />;
+  return <StatsStatic stats={STATS} animate={!reduced} />;
+}
+
+function StatsCinematic({ stats }: { stats: Stat[] }) {
   const root = useRef<HTMLElement | null>(null);
   const topTick = useRef<HTMLDivElement | null>(null);
   const bottomSweep = useRef<HTMLDivElement | null>(null);
@@ -40,11 +55,9 @@ export function Stats() {
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    if (reduced || !root.current) return;
+    if (!root.current) return;
 
     const ctx = gsap.context(() => {
-      // Initial state — everything hidden, dividers collapsed top-down,
-      // numbers offset for a lift-in.
       gsap.set(topTick.current, { scaleX: 0, transformOrigin: "center top" });
       gsap.set(bottomSweep.current, { scaleX: 0, transformOrigin: "left center" });
       gsap.set(dividerRefs.current, { scaleY: 0, transformOrigin: "top center" });
@@ -52,12 +65,11 @@ export function Stats() {
       gsap.set(numberRefs.current, { opacity: 0, y: 28 });
       gsap.set(labelRefs.current, { opacity: 0, y: 10 });
 
-      // Pre-seed digit text so layout reserves space.
       digitRefs.current.forEach((node) => {
         if (node) node.textContent = "0";
       });
 
-      const counts = STATS.map(() => ({ n: 0 }));
+      const counts = stats.map(() => ({ n: 0 }));
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -70,7 +82,7 @@ export function Stats() {
 
       tl.to(topTick.current, { scaleX: 1, ease: "power2.out", duration: 0.4 }, 0);
 
-      STATS.forEach((s, i) => {
+      stats.forEach((s, i) => {
         const base = 0.15 + i * 0.55;
         tl.to(dividerRefs.current[i], { scaleY: 1, ease: "power3.inOut", duration: 0.45 }, base);
         tl.to(indexRefs.current[i], { opacity: 1, y: 0, ease: "power2.out", duration: 0.3 }, base + 0.05);
@@ -95,19 +107,13 @@ export function Stats() {
     }, root);
 
     return () => ctx.revert();
-  }, [reduced]);
-
-  // Mobile uses the simpler 2-col layout where dividers don't make sense
-  // between rows; only the in-row divider draws.
-  const showDivider = (i: number) => i > 0; // hidden on i===0 by class; nth-child handles mobile.
+  }, [stats]);
 
   return (
     <section
       ref={root}
       className="relative bg-ink-900/60"
-      // Extra scroll budget for the reveal. ~1.6 extra viewports is enough
-      // for all four stats to play out without feeling stretched.
-      style={{ minHeight: reduced ? undefined : "260svh" }}
+      style={{ minHeight: "260svh" }}
     >
       <div className="sticky top-0 flex h-[100svh] w-full items-center border-y border-fg/15">
         <div
@@ -116,7 +122,7 @@ export function Stats() {
         />
 
         <div className="mx-auto grid w-full max-w-7xl grid-cols-2 md:grid-cols-4">
-          {STATS.map((s, i) => (
+          {stats.map((s, i) => (
             <div
               key={s.label}
               className={
@@ -125,7 +131,7 @@ export function Stats() {
                 "after:bg-accent after:transition-[width] after:duration-500 after:ease-kwell hover:after:w-12"
               }
             >
-              {showDivider(i) && (
+              {i > 0 && (
                 <span
                   ref={(el) => {
                     dividerRefs.current[i] = el;
@@ -134,7 +140,6 @@ export function Stats() {
                   className={
                     "pointer-events-none absolute inset-y-6 left-0 w-px " +
                     "bg-gradient-to-b from-transparent via-fg/25 to-transparent md:block " +
-                    // Mobile (2 cols): only show on i=1 and i=3 (2nd column of each row).
                     (i % 2 === 1 ? "block" : "hidden")
                   }
                 />
@@ -161,7 +166,7 @@ export function Stats() {
                     digitRefs.current[i] = el;
                   }}
                 >
-                  {reduced ? NF.format(s.target) : "0"}
+                  0
                 </span>
                 <span className="text-accent">{s.suffix}</span>
               </div>
@@ -186,4 +191,71 @@ export function Stats() {
       </div>
     </section>
   );
+}
+
+function StatsStatic({ stats, animate }: { stats: Stat[]; animate: boolean }) {
+  return (
+    <section className="relative border-y border-fg/15 bg-ink-900/60">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-2">
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className="relative px-6 py-10"
+          >
+            {i > 0 && i % 2 === 1 && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-6 left-0 w-px bg-gradient-to-b from-transparent via-fg/25 to-transparent"
+              />
+            )}
+            <span className="absolute left-6 top-4 flex items-center gap-2 font-display text-[10px] tracking-[0.3em] text-fg/45">
+              <span className="h-px w-3 bg-fg/30" />
+              N°{String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="font-display text-5xl uppercase leading-none tracking-display-tight text-fg tabular-nums">
+              <CountUp target={s.target} animate={animate} />
+              <span className="text-accent">{s.suffix}</span>
+            </div>
+            <div className="mt-3 text-[11px] uppercase tracking-[0.25em] text-fg/60">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CountUp({ target, animate }: { target: number; animate: boolean }) {
+  const [n, setN] = useState<number>(animate ? 0 : target);
+  const ref = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!animate || !ref.current) {
+      setN(target);
+      return;
+    }
+    const node = ref.current;
+    let started = false;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !started) {
+            started = true;
+            const tween = { n: 0 };
+            gsap.to(tween, {
+              n: target,
+              duration: 1.6,
+              ease: "power3.out",
+              onUpdate: () => setN(Math.round(tween.n)),
+            });
+            obs.disconnect();
+          }
+        }
+      },
+      { threshold: 0.4, rootMargin: "0px 0px -40px 0px" },
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [animate, target]);
+
+  return <span ref={ref}>{NF.format(n)}</span>;
 }
