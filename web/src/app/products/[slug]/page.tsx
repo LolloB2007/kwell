@@ -6,13 +6,13 @@ import { ProductDetailView } from "@/components/ProductDetailView";
 export const revalidate = 300;
 
 // Static export: the product API isn't reachable from the GitHub Actions
-// build environment, so we don't prerender any product slugs. With
-// `dynamicParams = false`, Next omits these routes from the static output
-// entirely instead of failing the build. Once a public API exists, swap
-// this for a real fetch that returns the live slug list.
-export const dynamicParams = false;
+// build, so we can't enumerate real slugs. Next requires at least one
+// entry, so we emit a single placeholder route — the page itself will
+// call notFound() at build time (since the fetch fails) and Next will
+// emit a 404 for that path. Replace with a real fetch once a public API
+// exists.
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  return [];
+  return [{ slug: "placeholder" }];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
